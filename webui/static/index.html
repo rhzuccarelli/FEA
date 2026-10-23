@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>FEA Studio</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 16 16%27%3E%3Cpath d=%27M8 1l7 7-7 7-7-7z%27 fill=%27%232563eb%27/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="styles.css">
+  <script type="importmap">
+    { "imports": { "three": "./vendor/three.module.min.js" } }
+  </script>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand"><span class="logo">◆</span> FEA Studio <span class="sub">for code_aster</span></div>
+    <div id="solver-status" class="pill">checking solver…</div>
+  </header>
+
+  <div class="layout">
+    <aside class="sidebar">
+      <section class="card">
+        <h2><span class="step">1</span> Part</h2>
+        <p class="hint">A rectangular block, meshed with hexahedra. Units: metres.</p>
+        <div class="grid3">
+          <label>Length X<input id="lx" type="number" step="any" min="0" value="1"></label>
+          <label>Width Y<input id="ly" type="number" step="any" min="0" value="0.1"></label>
+          <label>Height Z<input id="lz" type="number" step="any" min="0" value="0.1"></label>
+          <label>Elements X<input id="nx" type="number" min="1" value="20"></label>
+          <label>Elements Y<input id="ny" type="number" min="1" value="4"></label>
+          <label>Elements Z<input id="nz" type="number" min="1" value="4"></label>
+        </div>
+        <div id="mesh-info" class="hint"></div>
+      </section>
+
+      <section class="card">
+        <h2><span class="step">2</span> Material</h2>
+        <label>Preset
+          <select id="material-preset">
+            <option value="steel">Structural steel</option>
+            <option value="aluminium">Aluminium 6061</option>
+            <option value="titanium">Titanium Ti-6Al-4V</option>
+            <option value="concrete">Concrete C30</option>
+            <option value="custom">Custom</option>
+          </select>
+        </label>
+        <div class="grid3">
+          <label>E (GPa)<input id="E" type="number" step="any" value="210"></label>
+          <label>ν<input id="nu" type="number" step="any" value="0.3"></label>
+          <label>ρ (kg/m³)<input id="rho" type="number" step="any" value="7850"></label>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2><span class="step">3</span> Supports &amp; loads</h2>
+        <p class="hint">Click a face in the 3D view, or pick it here.</p>
+        <div id="faces"></div>
+        <label class="check"><input id="gravity" type="checkbox"> Self-weight (gravity along −Z)</label>
+      </section>
+
+      <section class="card">
+        <h2><span class="step">4</span> Analysis</h2>
+        <div class="seg" role="radiogroup">
+          <label><input type="radio" name="analysis" value="static" checked><span>Linear static</span></label>
+          <label><input type="radio" name="analysis" value="modal"><span>Modal</span></label>
+        </div>
+        <label id="modes-row" hidden>Number of modes<input id="modes" type="number" min="1" max="50" value="6"></label>
+        <button id="run" class="primary">Run code_aster</button>
+        <div id="validation" class="error" hidden></div>
+      </section>
+
+      <section class="card">
+        <h2>Runs</h2>
+        <ul id="jobs" class="jobs"><li class="hint">No runs yet.</li></ul>
+      </section>
+    </aside>
+
+    <main class="main">
+      <nav class="tabs" role="tablist">
+        <button class="tab active" data-tab="view">3D view</button>
+        <button class="tab" data-tab="comm">Command file</button>
+        <button class="tab" data-tab="log">Solver log</button>
+      </nav>
+
+      <div class="panel active" id="panel-view">
+        <div id="summary" class="summary" hidden></div>
+        <div class="viewer-wrap">
+          <div id="viewer"></div>
+          <div class="toolbar" id="result-tools" hidden>
+            <label>Field<select id="field"></select></label>
+            <label id="mode-pick" hidden>Mode<select id="mode"></select></label>
+            <label>Deformation ×<input id="scale" type="range" min="0" max="3" step="0.05" value="1"><span id="scale-val"></span></label>
+            <label class="check"><input id="animate" type="checkbox"> Animate</label>
+            <button id="back-to-model" class="ghost">Back to model</button>
+          </div>
+          <div id="legend" class="legend" hidden>
+            <div class="legend-title" id="legend-title"></div>
+            <div class="legend-bar"></div>
+            <div class="legend-ticks"><span id="legend-min"></span><span id="legend-max"></span></div>
+          </div>
+          <div class="viewer-hint" id="viewer-hint">Drag to orbit · scroll to zoom · right-drag to pan · click a face to edit it</div>
+          <div class="busy" id="busy" hidden><div class="spinner"></div><div id="busy-text">Solving…</div></div>
+        </div>
+      </div>
+
+      <div class="panel" id="panel-comm">
+        <div class="panel-head">
+          <p class="hint">This is the code_aster command file that will be run. You can edit it before running (advanced).</p>
+          <label class="check"><input id="use-custom" type="checkbox"> Run my edited version</label>
+          <button id="reset-comm" class="ghost">Regenerate</button>
+        </div>
+        <textarea id="comm" spellcheck="false"></textarea>
+      </div>
+
+      <div class="panel" id="panel-log">
+        <div class="panel-head">
+          <p class="hint" id="log-head">Output of the latest run.</p>
+          <span id="downloads"></span>
+        </div>
+        <pre id="log"></pre>
+      </div>
+    </main>
+  </div>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>
