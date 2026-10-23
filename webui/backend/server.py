@@ -7,6 +7,7 @@ import math
 import os
 import shutil
 import subprocess
+import sys
 import threading
 import time
 import uuid
@@ -21,7 +22,26 @@ from . import case
 
 ROOT = Path(__file__).resolve().parent.parent
 RUNS = Path(os.environ.get("FEA_RUNS_DIR", ROOT / "runs"))
-RUN_ASTER = os.environ.get("CODE_ASTER_RUN", "run_aster")
+
+
+def _default_run_aster() -> str:
+    """Use the install made by scripts/install_code_aster.* if present, else run_aster on PATH."""
+    candidates = [
+        Path.home() / "fea-aster" / "root" / "envs" / "aster" / "Library" / "bin" / "run_aster.bat",
+        ROOT / ".aster" / "root" / "envs" / "aster" / "bin" / "run_aster",
+    ]
+    return next((str(c) for c in candidates if c.is_file()), "run_aster")
+
+
+RUN_ASTER = os.environ.get("CODE_ASTER_RUN") or _default_run_aster()
+
+
+def _aster_env() -> dict:
+    env = dict(os.environ)
+    if sys.platform == "win32":
+        # run_aster.bat locates its own install only when no conda env is active.
+        env.pop("CONDA_PREFIX", None)
+    return env
 STUDY = "study"
 DOWNLOADS = {"comm": f"{STUDY}.comm", "mail": f"{STUDY}.mail", "rmed": f"{STUDY}.rmed",
              "mess": f"{STUDY}.mess", "log": "run.log"}
@@ -41,7 +61,8 @@ def aster_version() -> str | None:
     if not exe:
         return None
     try:
-        out = subprocess.run([exe, "--version"], capture_output=True, text=True, timeout=60)
+        out = subprocess.run([exe, "--version"], capture_output=True, text=True, timeout=120,
+                             env=_aster_env(), encoding="utf-8", errors="replace")
         return (out.stdout + out.stderr).strip().splitlines()[-1]
     except (OSError, subprocess.TimeoutExpired):
         return None
@@ -97,10 +118,10 @@ def submit(req: StudyRequest):
     work = RUNS / job_id
     work.mkdir(parents=True)
     mesh, _ = _mesh_payload(study["geometry"])
-    (work / f"{STUDY}.mail").write_text(mesh.to_aster())
-    (work / f"{STUDY}.comm").write_text(req.comm if req.comm else case.build_comm(study))
-    (work / f"{STUDY}.export").write_text(case.build_export(STUDY))
-    (work / "study.json").write_text(json.dumps(study, indent=2))
+    (work / f"{STUDY}.mail").write_text(mesh.to_aster(), encoding="utf-8")
+    (work / f"{STUDY}.comm").write_text(req.comm if req.comm else case.build_comm(study), encoding="utf-8")
+    (work / f"{STUDY}.export").write_text(case.build_export(STUDY), encoding="utf-8")
+    (work / "study.json").write_text(json.dumps(study, indent=2), encoding="utf-8")
     job = {"id": job_id, "status": "queued", "created": time.time(), "analysis": study["analysis"]["type"],
            "custom_comm": bool(req.comm), "elapsed": None}
     with lock:
@@ -112,10 +133,10 @@ def submit(req: StudyRequest):
 def _run(job_id: str, work: Path):
     jobs[job_id]["status"] = "running"
     start = time.time()
-    with open(work / "run.log", "w") as log:
+    with open(work / "run.log", "w", encoding="utf-8") as log:
         try:
             proc = subprocess.run([RUN_ASTER, f"{STUDY}.export"], cwd=work, stdout=log,
-                                  stderr=subprocess.STDOUT, timeout=1200)
+                                  stderr=subprocess.STDOUT, timeout=1200, env=_aster_env())
             ok = proc.returncode == 0 and (work / "fields.json").exists()
         except subprocess.TimeoutExpired:
             log.write("\n*** Job killed: time limit exceeded ***\n")
@@ -148,10 +169,10 @@ def get_job(job_id: str, log_lines: int = 400):
     out = dict(job)
     log = work / "run.log"
     if log.exists():
-        out["log"] = "".join(log.read_text(errors="replace").splitlines(True)[-log_lines:])
+        out["log"] = "".join(log.read_text(encoding="utf-8", errors="replace").splitlines(True)[-log_lines:])
     if job["status"] == "done":
-        study = json.loads((work / "study.json").read_text())
-        fields = json.loads((work / "fields.json").read_text())
+        study = json.loads((work / "study.json").read_text(encoding="utf-8"))
+        fields = json.loads((work / "fields.json").read_text(encoding="utf-8"))
         _, mesh = _mesh_payload(study["geometry"])
         out.update(study=study, mesh=mesh, fields=fields, summary=_summary(study, fields))
     return out
