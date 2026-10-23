@@ -38,9 +38,19 @@ RUN_ASTER = os.environ.get("CODE_ASTER_RUN") or _default_run_aster()
 
 def _aster_env() -> dict:
     env = dict(os.environ)
-    if sys.platform == "win32":
-        # run_aster.bat locates its own install only when no conda env is active.
-        env.pop("CONDA_PREFIX", None)
+    if sys.platform == "win32" and RUN_ASTER.lower().endswith(".bat"):
+        # The conda-forge Windows build must run inside its activated environment:
+        # run_aster.bat and profile.bat read CONDA_PREFIX, and the solver DLLs live in
+        # Library\bin. Reproduce what `conda activate` does for <prefix>\Library\bin\run_aster.bat.
+        prefix = Path(RUN_ASTER).resolve().parents[2]
+        dirs = [prefix, prefix / "Library" / "mingw-w64" / "bin", prefix / "Library" / "usr" / "bin",
+                prefix / "Library" / "bin", prefix / "Scripts", prefix / "bin"]
+        env["CONDA_PREFIX"] = str(prefix)
+        env["PATH"] = os.pathsep.join([*map(str, dirs), env.get("PATH", "")])
+        # code_aster registers these with os.add_dll_directory on Windows.
+        env["LD_LIBRARY_PATH"] = str(prefix / "Library" / "bin")
+        env.pop("PYTHONHOME", None)
+        env.pop("PYTHONPATH", None)
     return env
 STUDY = "study"
 DOWNLOADS = {"comm": f"{STUDY}.comm", "mail": f"{STUDY}.mail", "rmed": f"{STUDY}.rmed",
