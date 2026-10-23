@@ -17,17 +17,36 @@ animated mode shapes, max values and support reactions. The **Command file** tab
 code_aster `.comm` file, which you can edit before running. The **Solver log** tab shows the run output and
 download links (`.comm`, mesh, `.rmed` results for ParaView/Salome, `.mess`).
 
-### Running it
+### Running it on Windows
+
+In PowerShell, from the `webui` folder:
+
+```powershell
+python -m pip install -r requirements.txt
+.\scripts\install_code_aster.cmd   # one-off: code_aster from conda-forge into %USERPROFILE%\fea-aster (~260 MB)
+.\scripts\serve.cmd                # then open http://localhost:8000
+```
+
+(The `.sh` scripts are for Linux/macOS; on Windows use the `.cmd` ones.)
+
+### Running it on Linux
 
 ```bash
 cd webui
 pip install -r requirements.txt
-./scripts/install_code_aster.sh      # code_aster from conda-forge into webui/.aster (one-off)
+./scripts/install_code_aster.sh      # one-off: code_aster from conda-forge into webui/.aster
 ./scripts/serve.sh                   # http://localhost:8000
 ```
 
-If code_aster is already installed elsewhere, set `CODE_ASTER_RUN=/path/to/run_aster`.
+The server finds code_aster installed by these scripts automatically. If it is installed elsewhere, set
+`CODE_ASTER_RUN=/path/to/run_aster` (`run_aster.bat` on Windows).
 Runs are stored in `webui/runs/` (override with `FEA_RUNS_DIR`).
+
+### Why not GitHub Pages?
+
+GitHub Pages only serves static files to the browser. code_aster is a native Fortran/C++ program that has to
+run on a real machine, so the page needs the small Python server next to it. You can run that server on your own
+PC (as above) or on any Linux server or cloud VM to share it with others.
 
 ### Layout
 
